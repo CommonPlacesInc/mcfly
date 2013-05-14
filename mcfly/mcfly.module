@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * Implements hook_init().
+ */
+function mcfly_init() {
+  $v = explode('.', PHP_VERSION);
+  // Target PHP 5.4 or greater
+  if ((int) $v[0] >= 5 && (int) $v[1] >= 4) {
+    // Avoid stomping on devel's custom error handlers but
+    // use ours if no custom handler has been set.
+    if (module_exists('devel') && variable_get('devel_error_handler', DEVEL_ERROR_HANDLER_STANDARD) == DEVEL_ERROR_HANDLER_STANDARD) {
+      set_error_handler('mcfly_error_handler');
+    }
+    // If devel doesn't exist, just set ours.
+    elseif (!module_exists('devel')) {
+      set_error_handler('mcfly_error_handler');
+    }
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Warn the user that certain settings with devel will cause
+ * McFly to be ignored.
+ */
+function mcfly_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'devel_admin_settings') {
+    foreach ($form['devel_error_handler']['#options'] as $k => $v) {
+      if ($k != DEVEL_ERROR_HANDLER_STANDARD) {
+        $options[$k] = $v . t(' (The McFly module will be ignored)');
+      }
+      else {
+        $options[$k] = $v;
+      }
+    }
+    $form['devel_error_handler']['#options'] = $options;
+  }
+}
+
+/**
+ * Log errors as defined by administrator.
+ *
+ * This is a copy/paste/override of drupal_error_handler(),
+ * We just added ^ E_STRICT to the list of ignored errors.
+ *
+ * Error levels:
+ * - 0 = Log errors to database.
+ * - 1 = Log errors to database and to screen.
+ */
+function mcfly_error_handler($errno, $message, $filename, $line, $context) {
+  // If the @ error suppression operator was used, error_reporting will have
+  // been temporarily set to 0.
+  if (error_reporting() == 0) {
+    return;
+  }
+
+  if ($errno & (E_ALL ^ E_DEPRECATED ^ E_NOTICE ^ E_STRICT)) {
+    $types = array(1 => 'error', 2 => 'warning', 4 => 'parse error', 8 => 'notice', 16 => 'core error', 32 => 'core warning', 64 => 'compile error', 128 => 'compile warning', 256 => 'user error', 512 => 'user warning', 1024 => 'user notice', 2048 => 'strict warning', 4096 => 'recoverable fatal error');
+
+    // For database errors, we want the line number/file name of the place that
+    // the query was originally called, not _db_query().
+    if (isset($context[DB_ERROR])) {
+      $backtrace = array_reverse(debug_backtrace());
+
+      // List of functions where SQL queries can originate.
+      $query_functions = array('db_query', 'pager_query', 'db_query_range', 'db_query_temporary', 'update_sql');
+
+      // Determine where query function was called, and adjust line/file
+      // accordingly.
+      foreach ($backtrace as $index => $function) {
+        if (in_array($function['function'], $query_functions)) {
+          $line = $backtrace[$index]['line'];
+          $filename = $backtrace[$index]['file'];
+          break;
+        }
+      }
+    }
+
+    // Try to use filter_xss(). If it's too early in the bootstrap process for
+    // filter_xss() to be loaded, use check_plain() instead.
+    $entry = check_plain($types[$errno]) .': '. (function_exists('filter_xss') ? filter_xss($message) : check_plain($message)) .' in '. check_plain($filename) .' on line '. check_plain($line) .'.';
+
+    // Force display of error messages in update.php.
+    if (variable_get('error_level', 1) == 1 || strstr($_SERVER['SCRIPT_NAME'], 'update.php')) {
+      drupal_set_message($entry, 'error');
+    }
+
+    watchdog('php', '%message in %file on line %line.', array('%error' => $types[$errno], '%message' => $message, '%file' => $filename, '%line' => $line), WATCHDOG_ERROR);
+  }
+}

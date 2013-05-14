@@ -1,0 +1,5 @@
+name = Mcfly
+description = "Propels Drupal 6 sites into the Future by suppressing PHP Strict errors created when running a Drupal 6 site on PHP 5.4"
+core = 6.x
+version = 6.x-1.0
+package = "Commonplaces"
