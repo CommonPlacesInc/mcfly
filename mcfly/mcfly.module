@@ -4,9 +4,8 @@
  * Implements hook_init().
  */
 function mcfly_init() {
-  $v = explode('.', PHP_VERSION);
   // Target PHP 5.4 or greater
-  if ((int) $v[0] >= 5 && (int) $v[1] >= 4) {
+  if (version_compare(PHP_VERSION, '5.4.0', '>=')) {
     // Avoid stomping on devel's custom error handlers but
     // use ours if no custom handler has been set.
     if (module_exists('devel') && variable_get('devel_error_handler', DEVEL_ERROR_HANDLER_STANDARD) == DEVEL_ERROR_HANDLER_STANDARD) {
