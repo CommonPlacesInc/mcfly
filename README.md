@@ -1,5 +1,5 @@
 # What it does #
-Propels Drupal 6 sites into the Future by suppressing PHP Strict errors created when running a Drupal 6 site on PHP 5.4. 
+Propels Drupal 6 sites into the Future by suppressing PHP strict warnings created when running a Drupal 6 site on PHP 5.4. 
 
 If you've transferred a Drupal 6 site to a server running PHP 5.4 chances are pretty good that you'll see tons of errors 
 flooding your watchdog logs and displaying on-screen messages from contributed modules. Some of these will eventually be 
